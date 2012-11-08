@@ -65,9 +65,6 @@ class LogEntryHandlerMap(object):
         return ret
 
 
-def process_entry(entry):
-    pass
-
 class LogEntryWorker(object):
 
     def __init__(self, work_queue, entryhandler_map):
@@ -141,10 +138,15 @@ def gotmsg(entry):
     print 'I just got an entry!'
 
 def main():
+    # Add handlers for syslog entries
     handler_map = LogEntryHandlerMap((
         LogEntryHandler(gotmsg, msg='.*'),
         LogEntryHandler(dontprint),))
+
+    # Create the work queue
     work_queue = Queue(100)
+
+    # Create the worker pool
     pool = Pool(processes=4,
                 initializer=start_worker,
                 initargs=(work_queue, handler_map))
