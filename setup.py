@@ -12,5 +12,5 @@ setup(name='SyslogProcessor',
               'loggerglue>=1.0',
               'pyparsing>=1.5.6',
               'sspps>=0.1.3'],
-    scripts=['syslogprocessor']
+    scripts=['scripts/syslogprocessor']
     )
