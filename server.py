@@ -18,7 +18,7 @@ import re
 class LogEntryHandler(object):
 
     def __init__(self, handler,
-                 priority=False,
+                 privals=0,
                  timestamp=None,
                  hostname=None,
                  app_name=None,
@@ -26,7 +26,7 @@ class LogEntryHandler(object):
                  msgid=None,
                  msg=None):
         self.handler = handler
-        self.priority = priority and re.compile(priority)
+        self.privals = privals
         self.timestamp = timestamp and re.compile(timestamp)
         self.hostname = hostname and re.compile(hostname)
         self.app_name = app_name and re.compile(app_name)
@@ -36,13 +36,16 @@ class LogEntryHandler(object):
 
     def handles_entry(self, entry):
         check_pairs = (
-            (self.priority, entry.prival),
             (self.timestamp, entry.timestamp),
             (self.hostname, entry.hostname),
             (self.app_name, entry.app_name),
             (self.procid, entry.procid),
             (self.msgid, entry.msgid),
             (self.msg, entry.msg) )
+
+        if self.privals & entry.prival:
+            return True
+
         for pair in check_pairs:
             if pair[0] and pair[0].match(str(pair[1])):
                 return True
@@ -73,7 +76,10 @@ class LogEntryWorker(object):
 
     def run(self):
         while True:
-            line = self.work_queue.get()
+            try:
+                line = self.work_queue.get()
+            except KeyboardInterrupt:
+                break
             try:
                 entry = SyslogEntry.from_line(line)
             except pyparsing.exceptions.Exception:
@@ -153,7 +159,11 @@ def main():
 
     server = SyslogServer(('localhost', 6514), work_queue)
     while True:
-        asyncore.loop()
+        try:
+            asyncore.loop()
+        except KeyboardInterrupt:
+            print 'ctrl+c detected, exiting.'
+            break
 
 if __name__ == '__main__':
     main()
