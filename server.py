@@ -13,7 +13,7 @@ import os
 import time
 import pyparsing
 import re
-
+import argparse
 
 class LogEntryHandler(object):
 
@@ -144,20 +144,42 @@ def gotmsg(entry):
     print 'I just got an entry!'
 
 def main():
+    # Argument parsing
+    parser = argparse.ArgumentParser(description='Framework to process syslog'\
+                                     ' entries')
+    parser.add_argument('-n', '--numworkers',
+        help='Numer of worker processes',
+        type=int,
+        default=4)
+    parser.add_argument('-q', '--queuesize',
+        help='Size of entry queue',
+        type=int,
+        default=100)
+    parser.add_argument('-p', '--port',
+        help='Syslog server port',
+        type=int,
+        default=6514)
+    parser.add_argument('-l', '--listen',
+        help='Syslog listen address',
+        type=str,
+        default='localhost')
+
+    args = parser.parse_args()
+
     # Add handlers for syslog entries
     handler_map = LogEntryHandlerMap((
         LogEntryHandler(gotmsg, msg='.*'),
         LogEntryHandler(dontprint),))
 
     # Create the work queue
-    work_queue = Queue(100)
+    work_queue = Queue(args.queuesize)
 
     # Create the worker pool
-    pool = Pool(processes=4,
+    pool = Pool(processes=args.numworkers,
                 initializer=start_worker,
                 initargs=(work_queue, handler_map))
 
-    server = SyslogServer(('localhost', 6514), work_queue)
+    server = SyslogServer((args.listen, args.port), work_queue)
     while True:
         try:
             asyncore.loop()
