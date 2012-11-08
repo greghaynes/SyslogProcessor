@@ -12,48 +12,9 @@ import socket
 import os
 import time
 import pyparsing
-import re
 import argparse
-
-class LogEntryHandler(object):
-
-    def __init__(self, handler,
-                 privals=0,
-                 timestamp=None,
-                 hostname=None,
-                 app_name=None,
-                 procid=None,
-                 msgid=None,
-                 msg=None):
-        self.handler = handler
-        self.privals = privals
-        self.timestamp = timestamp and re.compile(timestamp)
-        self.hostname = hostname and re.compile(hostname)
-        self.app_name = app_name and re.compile(app_name)
-        self.procid = procid and re.compile(procid)
-        self.msgid = msgid and re.compile(msgid)
-        self.msg = msg and re.compile(msg)
-
-    def handles_entry(self, entry):
-        check_pairs = (
-            (self.timestamp, entry.timestamp),
-            (self.hostname, entry.hostname),
-            (self.app_name, entry.app_name),
-            (self.procid, entry.procid),
-            (self.msgid, entry.msgid),
-            (self.msg, entry.msg) )
-
-        if self.privals & entry.prival:
-            return True
-
-        for pair in check_pairs:
-            if pair[0] and pair[0].match(str(pair[1])):
-                return True
-        return False
-
-    def trigger(self, entry):
-        self.handler(entry)
-
+import sspps
+import handler
 
 class LogEntryHandlerMap(object):
 
@@ -137,12 +98,6 @@ class SyslogServer(asyncore.dispatcher):
             print 'Incoming connection from %s' % repr(addr)
             handler = SyslogClient(sock, self.work_queue)
 
-def dontprint(entry):
-    print 'THIS SHOULD NOT PRINT'
-
-def gotmsg(entry):
-    print 'I just got an entry!'
-
 def main():
     # Argument parsing
     parser = argparse.ArgumentParser(description='Framework to process syslog'\
@@ -166,10 +121,11 @@ def main():
 
     args = parser.parse_args()
 
+    pl = sspps.PluginLoader('handlers', parent_class=handler.LogEntryHandler)
+    pl.load_all()
+
     # Add handlers for syslog entries
-    handler_map = LogEntryHandlerMap((
-        LogEntryHandler(gotmsg, msg='.*'),
-        LogEntryHandler(dontprint),))
+    handler_map = LogEntryHandlerMap(pl.plugins)
 
     # Create the work queue
     work_queue = Queue(args.queuesize)
