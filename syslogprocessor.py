@@ -118,11 +118,20 @@ def main():
         help='Syslog listen address',
         type=str,
         default='localhost')
+    parser.add_argument('-m', '--handlersdir',
+        help='Director containing handler modules',
+        type=str,
+        default='/var/lib/syslogprocessor/handlers')
 
     args = parser.parse_args()
 
-    pl = sspps.PluginLoader('handlers', parent_class=handler.LogEntryHandler)
-    pl.load_all()
+    pl = sspps.PluginLoader(args.handlersdir, parent_class=handler.LogEntryHandler)
+    try:
+        pl.load_all()
+    except OSError:
+        print 'Invalid plugin path \'%s\'.' % args.handlersdir
+        print 'Please specify a valid handlers directory'
+        return
 
     # Add handlers for syslog entries
     handler_map = LogEntryHandlerMap(pl.plugins)
