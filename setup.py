@@ -11,6 +11,6 @@ setup(name='SyslogProcessor',
     install_requires=['argparse>=1.2.1',
               'loggerglue>=1.0',
               'pyparsing>=1.5.6',
-              'sspps>=0.1.3'],
+              'sspps>=0.1.4'],
     scripts=['scripts/syslogprocessor']
     )

@@ -7,9 +7,11 @@ Author: Gregory Haynes <greg@idealist.org> (2012)
 
 from multiprocessing import Pool, Queue
 from loggerglue.rfc5424 import SyslogEntry
+from Queue import Empty as QueueEmpty
 import asyncore
 import socket
 import os
+import sys
 import time
 import pyparsing
 import argparse
@@ -36,11 +38,16 @@ class LogEntryWorker(object):
         self.entryhandler_map = entryhandler_map
 
     def run(self):
+        ppid = os.getppid()
         while True:
             try:
-                line = self.work_queue.get()
+                line = self.work_queue.get(timeout=0.5)
             except KeyboardInterrupt:
                 break
+            except QueueEmpty:
+                if os.getppid() != ppid:
+                    break
+                continue
             try:
                 entry = SyslogEntry.from_line(line)
             except pyparsing.exceptions.Exception:
@@ -131,7 +138,7 @@ def main():
     except OSError:
         print 'Invalid plugin path \'%s\'.' % args.handlersdir
         print 'Please specify a valid handlers directory'
-        return
+        sys.exit(os.EX_OSERR)
 
     # Add handlers for syslog entries
     handler_map = LogEntryHandlerMap(pl.plugins)
@@ -145,12 +152,17 @@ def main():
                 initargs=(work_queue, handler_map))
 
     server = SyslogServer((args.listen, args.port), work_queue)
-    while True:
-        try:
-            asyncore.loop()
-        except KeyboardInterrupt:
-            print 'ctrl+c detected, exiting.'
-            break
+
+    try:
+        while True:
+                asyncore.loop()
+    except KeyboardInterrupt:
+        print 'ctrl+c detected, exiting.'
+        pool.close()
+        sys.exit(os.EX_OSERR)
+    except Exception:
+        print 'Error, exiting'
+        pool.close()
 
 if __name__ == '__main__':
     main()
