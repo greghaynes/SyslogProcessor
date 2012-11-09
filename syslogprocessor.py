@@ -17,6 +17,7 @@ import pyparsing
 import argparse
 import sspps
 import handler
+import rsyslog_fix
 
 class LogEntryHandlerMap(object):
 
@@ -105,6 +106,7 @@ class SyslogServer(asyncore.dispatcher):
             print 'Incoming connection from %s' % repr(addr)
             handler = SyslogClient(sock, self.work_queue)
 
+
 def main():
     # Argument parsing
     parser = argparse.ArgumentParser(description='Framework to process syslog'\
@@ -131,6 +133,8 @@ def main():
         default='/var/lib/syslogprocessor/handlers')
 
     args = parser.parse_args()
+
+    rsyslog_fix.fix()
 
     pl = sspps.PluginLoader(args.handlersdir, parent_class=handler.LogEntryHandler)
     try:
