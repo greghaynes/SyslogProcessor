@@ -58,7 +58,6 @@ class LogEntryWorker(object):
     def process_entry(self, entry):
         handlers = self.entryhandler_map.handlers_for(entry)
         for handler in handlers:
-            print handler
             handler.trigger(entry)
             
 
