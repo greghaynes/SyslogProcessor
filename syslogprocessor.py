@@ -42,7 +42,7 @@ class LogEntryWorker(object):
         ppid = os.getppid()
         while True:
             try:
-                line = self.work_queue.get(timeout=0.5)
+                line = self.work_queue.get(timeout=0.5).decode('utf-8').encode('ASCII', 'ignore')
             except KeyboardInterrupt:
                 break
             except QueueEmpty:
