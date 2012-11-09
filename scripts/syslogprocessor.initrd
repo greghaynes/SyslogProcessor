@@ -14,7 +14,7 @@
 # Description:          syslogprocessor
 ### END INIT INFO
 
-DAEMON=/usr/bin/syslogprocessor
+DAEMON=/usr/local/bin/syslogprocessor
 USER=nobody
 PIDFILE=/var/run/syslogprocessor.pid
 ARGS="-n 4 -q 100"
@@ -23,13 +23,23 @@ if [ -r /etc/init.d/functions ]; then
     . /etc/init.d/functions
 fi
 
+
 function start_syslogprocessor {
+    echo -n "Starting syslog processor daemon: "
     if [ -x /sbin/start-stop-daemon ]; then
         start-stop-daemon -S -q -b -m -c ${USER} -p ${PIDFILE} \
             -x${DAEMON} -- ${ARGS}
+        start-stop-daemon -T -p ${PIDFILE}
+        RET=$?
     else
 	daemon --pidfile ${PIDFILE} \
 	    daemonize -l ${PIDFILE} -p ${PIDFILE} -u ${USER} ${DAEMON} ${ARGS}
+        RET=$?
+    fi
+    if [ $RET -eq 0 ]; then
+        echo "OK"
+    else
+        echo "ERROR"
     fi
 }
 
@@ -39,10 +49,19 @@ function status_syslogprocessor {
 }
 
 function stop_syslogprocessor {
+    echo -n "Stopping syslog processor daemon: "
     if [ -x /sbin/start-stop-daemon ]; then
         /sbin/start-stop-daemon -K -q -p ${PIDFILE}
+        RET=$?
     else
-	killproc -p ${PIDFILE} ${DAEMON}
+	    killproc -p ${PIDFILE} ${DAEMON}
+        RET=$?
+    fi
+    if [ $RET -eq 1 ]; then
+        echo "OK"
+        RET=0
+    else
+        echo "ERROR"
     fi
 }
 
@@ -64,4 +83,4 @@ case "$1" in
         echo "Usage: $0 {start|stop|status|restart}"
         ;;
 esac
-exit $?
+exit $RET
