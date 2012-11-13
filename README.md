@@ -16,6 +16,16 @@ in their constructor. See the example handlers and handler.py for more
 information.
 
 
+Filters:
+* privals - A bitmask of priotity flags. See syslog documentation. This is bitmasked against the message prival to determine if the handler should be called.
+* timestamp - ISO formatted timestamp
+* hostname - Name of host which created the message
+* app_name - Name of app which created the message
+* procid - ID (numeral) of process which created the message
+* msgid - A numeric ID for the message
+* msg - Message data
+
+
 Configuration
 -------------
 
