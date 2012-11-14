@@ -19,6 +19,28 @@ import sspps
 import handler
 import rsyslog_fix
 
+def daemonize():
+    try:
+        pid = os.fork()
+    except OSError, e:
+        raise Exception, 'First fork failed: %s [%s]' % (e.strerror, e.errno)
+
+    if pid > 0:
+        sys.exit(0)
+
+    os.chdir('/')
+    os.setsid()
+    os.umask(0)
+
+    try:
+        pid = os.fork()
+    except OSError, e:
+        raise Exception, 'Second fork failed: %s [%s]' % (e.strerror, e.errno)
+
+    if pid > 0:
+        sys.exit(0)
+
+
 class LogEntryHandlerMap(object):
 
     def __init__(self, handlers=()):
@@ -133,8 +155,14 @@ def main():
         help='Director containing handler modules',
         type=str,
         default='/var/lib/syslogprocessor/handlers')
+    parser.add_argument('-D', '--daemonize',
+        help='Run as a daemon',
+        action="store_true")
 
     args = parser.parse_args()
+
+    if args.daemonize:
+        daemonize()
 
     rsyslog_fix.fix()
 
@@ -166,9 +194,10 @@ def main():
         print 'ctrl+c detected, exiting.'
         pool.close()
         sys.exit(os.EX_OSERR)
-    except Exception:
-        print 'Error, exiting'
+    except Exception, e:
+        print 'Error, closing the pool'
         pool.close()
+        raise e
 
 if __name__ == '__main__':
     main()
