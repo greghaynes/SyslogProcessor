@@ -45,6 +45,9 @@ class LogEntryWorker(object):
                 line = self.work_queue.get(timeout=0.5).decode('utf-8').encode('ASCII', 'ignore')
             except KeyboardInterrupt:
                 break
+            except UnicodeDecodeError:
+                print 'Unicode Error, skipping entry'
+                continue
             except QueueEmpty:
                 if os.getppid() != ppid:
                     break
