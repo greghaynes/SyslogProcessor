@@ -4,6 +4,18 @@ Syslog Processor
 A framework for processing syslog messages using Python
 
 
+How it works
+------------
+
+Syslog Processor acts as a syslog server, and accepts Syslog23 style syslog messages as input over tcp. The typical method of use is to forward all messages from a logging server to a syslog processor using this protocol.
+
+The following line will forward all messages in rsyslog to a Syslog Procesor
+
+<pre>
+*.* @@(o)localhost:6514;RSYSLOG_SyslogProtocol23Format
+</pre>
+
+
 Handlers
 --------
 
