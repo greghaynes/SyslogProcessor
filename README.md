@@ -45,3 +45,9 @@ Configuration
 
 Run syslogprocessor -h for argument information
 
+
+Reloading Plugins
+-----------------
+
+If you make a modification to a plugin and wish to reload the plugin without stopping the syslog server you can send a SIGUSR1 to the parent syslogprocessor process.
+
