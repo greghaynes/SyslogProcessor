@@ -17,6 +17,7 @@ import pyparsing
 import argparse
 import sspps
 import handler
+import signal
 import rsyslog_fix
 
 def daemonize():
@@ -64,7 +65,11 @@ class LogEntryWorker(object):
         ppid = os.getppid()
         while True:
             try:
-                line = self.work_queue.get(timeout=0.5).decode('utf-8').encode('ASCII', 'ignore')
+                line = self.work_queue.get(timeout=0.5)
+                if not line:
+                    'Parent process is asking us to exit'
+                    return
+                line = line.decode('utf-8').encode('ASCII', 'ignore')
             except KeyboardInterrupt:
                 break
             except UnicodeDecodeError:
@@ -131,7 +136,10 @@ class SyslogServer(asyncore.dispatcher):
             handler = SyslogClient(sock, self.work_queue)
 
 
+do_reload = False
+
 def main():
+    global do_reload
     # Argument parsing
     parser = argparse.ArgumentParser(description='Framework to process syslog'\
                                      ' entries')
@@ -180,6 +188,13 @@ def main():
     # Create the work queue
     work_queue = Queue(args.queuesize)
 
+    # Reload signal handler
+    def sigusr1_handler(signum, frame):
+        global do_reload
+        do_reload = True
+        print 'HI!'
+    signal.signal(signal.SIGUSR1, sigusr1_handler)
+
     # Create the worker pool
     pool = Pool(processes=args.numworkers,
                 initializer=start_worker,
@@ -189,7 +204,14 @@ def main():
 
     try:
         while True:
-                asyncore.loop()
+                asyncore.loop(timeout=.2, count=1)
+                if do_reload:
+                    for i in range(args.numworkers):
+                        work_queue.put(None)
+                    # No more swimming
+                    pool.close()
+                    pool.join()
+                    do_reload = False
     except KeyboardInterrupt:
         print 'ctrl+c detected, exiting.'
         pool.close()
