@@ -59,22 +59,21 @@ class LogEntryWorker(object):
 
     def __init__(self, work_queue, args):
         self.work_queue = work_queue
-        self.entryhandler_map = self.gen_handler_map(args.handlersdir)
+        self.init_handler_map(args.handlersdir)
 
     @property
     def runable(self):
         return self.entryhandler_map != None
 
-    def gen_handler_map(self, handlersdir):
-        pl = sspps.PluginLoader(handlersdir, parent_class=handler.LogEntryHandler)
+    def init_handler_map(self, handlersdir):
+        self.plugin_loader = sspps.PluginLoader(handlersdir, parent_class=handler.LogEntryHandler)
         try:
-            pl.load_all()
+            self.plugin_loader.load_all()
         except OSError:
             print 'Invalid plugin path \'%s\'.' % handlersdir
             return None
         
-        handler_map = LogEntryHandlerMap(pl.plugins)
-        return handler_map
+        self.entryhandler_map = LogEntryHandlerMap(self.plugin_loader.plugins)
 
     def run(self):
         if not self.runable:
@@ -200,7 +199,7 @@ def main():
     def sigusr1_handler(signum, frame):
         global do_reload
         do_reload = True
-        print 'HI!'
+
     signal.signal(signal.SIGUSR1, sigusr1_handler)
 
     # Create the worker pool
@@ -214,12 +213,24 @@ def main():
         while True:
                 asyncore.loop(timeout=.2, count=1)
                 if do_reload:
+                    print 'Starting reload'
+
+                    # Cause children to exit
                     for i in range(args.numworkers):
                         work_queue.put(None)
+
                     # No more swimming
                     pool.close()
                     pool.join()
+
+                    # Restart children
+                    pool = Pool(processes=args.numworkers,
+                                initializer=start_worker,
+                                initargs=(work_queue, args))
+
+                    print 'Reload complete'
                     do_reload = False
+
     except KeyboardInterrupt:
         print 'ctrl+c detected, exiting.'
         pool.close()
