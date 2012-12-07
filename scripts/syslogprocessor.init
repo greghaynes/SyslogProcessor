@@ -24,19 +24,25 @@ if [ -r /etc/init.d/functions ]; then
 fi
 
 
+function reload_syslogprocessor {
+    echo -n "Reloading syslog processor: "
+    PID=`cat $PIDFILE`
+    kill -USR1 $PID
+    echo "OK"
+}
+
 function start_syslogprocessor {
     echo -n "Starting syslog processor daemon: "
     if [ -x /sbin/start-stop-daemon ]; then
         start-stop-daemon -S -q -b -m -c ${USER} -p ${PIDFILE} \
             -x${DAEMON} -- ${ARGS}
-        start-stop-daemon -T -p ${PIDFILE}
-        RET=$?
+        RET="$?"
     else
 	daemon --pidfile ${PIDFILE} \
 	    daemonize -l ${PIDFILE} -p ${PIDFILE} -u ${USER} ${DAEMON} ${ARGS}
-        RET=$?
+        RET="$?"
     fi
-    if [ $RET -eq 0 ]; then
+    if [ $RET -eq "0" ]; then
         echo "OK"
     else
         echo "ERROR"
@@ -52,12 +58,12 @@ function stop_syslogprocessor {
     echo -n "Stopping syslog processor daemon: "
     if [ -x /sbin/start-stop-daemon ]; then
         /sbin/start-stop-daemon -K -q -p ${PIDFILE}
-        RET=$?
+        RET="$?"
     else
 	    killproc -p ${PIDFILE} ${DAEMON}
-        RET=$?
+        RET="$?"
     fi
-    if [ $RET -eq 1 ]; then
+    if [ $RET -eq "0" ]; then
         echo "OK"
         RET=0
     else
@@ -75,6 +81,9 @@ case "$1" in
      restart)
         stop_syslogprocessor
         start_syslogprocessor
+        ;;
+     reload)
+        reload_syslogprocessor
         ;;
      status)
         status_syslogprocessor
