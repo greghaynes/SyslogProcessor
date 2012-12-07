@@ -57,27 +57,46 @@ class LogEntryHandlerMap(object):
 
 class LogEntryWorker(object):
 
-    def __init__(self, work_queue, entryhandler_map):
+    def __init__(self, work_queue, args):
         self.work_queue = work_queue
-        self.entryhandler_map = entryhandler_map
+        self.entryhandler_map = self.gen_handler_map(args.handlersdir)
+
+    @property
+    def runable(self):
+        return self.entryhandler_map != None
+
+    def gen_handler_map(self, handlersdir):
+        pl = sspps.PluginLoader(handlersdir, parent_class=handler.LogEntryHandler)
+        try:
+            pl.load_all()
+        except OSError:
+            print 'Invalid plugin path \'%s\'.' % handlersdir
+            return None
+        
+        handler_map = LogEntryHandlerMap(pl.plugins)
+        return handler_map
 
     def run(self):
+        if not self.runable:
+            print 'Process not runable, returning'
+            return False
+
         ppid = os.getppid()
         while True:
             try:
                 line = self.work_queue.get(timeout=0.5)
                 if not line:
                     'Parent process is asking us to exit'
-                    return
+                    return True
                 line = line.decode('utf-8').encode('ASCII', 'ignore')
             except KeyboardInterrupt:
-                break
+                return False
             except UnicodeDecodeError:
                 print 'Unicode Error, skipping entry'
                 continue
             except QueueEmpty:
                 if os.getppid() != ppid:
-                    break
+                    return False
                 continue
             try:
                 entry = SyslogEntry.from_line(line)
@@ -93,7 +112,7 @@ class LogEntryWorker(object):
 
 def start_worker(work_queue, entryhandler_map):
     worker = LogEntryWorker(work_queue, entryhandler_map)
-    worker.run()
+    return worker.run()
 
 
 class SyslogClient(asyncore.dispatcher_with_send):
@@ -174,17 +193,6 @@ def main():
 
     rsyslog_fix.fix()
 
-    pl = sspps.PluginLoader(args.handlersdir, parent_class=handler.LogEntryHandler)
-    try:
-        pl.load_all()
-    except OSError:
-        print 'Invalid plugin path \'%s\'.' % args.handlersdir
-        print 'Please specify a valid handlers directory'
-        sys.exit(os.EX_OSERR)
-
-    # Add handlers for syslog entries
-    handler_map = LogEntryHandlerMap(pl.plugins)
-
     # Create the work queue
     work_queue = Queue(args.queuesize)
 
@@ -198,7 +206,7 @@ def main():
     # Create the worker pool
     pool = Pool(processes=args.numworkers,
                 initializer=start_worker,
-                initargs=(work_queue, handler_map))
+                initargs=(work_queue, args))
 
     server = SyslogServer((args.listen, args.port), work_queue)
 
