@@ -202,11 +202,11 @@ def main():
     parser.add_argument('-u', '--loguser',
         help='User for log writer to run as',
         type=str,
-        default=None)
+        default='syslog')
     parser.add_argument('-x', '--loggroup',
         help='Group for log writer to run as',
         type=str,
-        default=None)
+        default='syslog')
     parser.add_argument('-p', '--port',
         help='Syslog server port',
         type=int,

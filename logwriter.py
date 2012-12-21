@@ -1,5 +1,7 @@
 import time
 import os
+import pwd
+import grp
 from Queue import Empty as QueueEmpty
 
 class LogWriter(object):
@@ -9,10 +11,17 @@ class LogWriter(object):
         self.log_root = args.logdir
         self.file_cache = {}
         self.last_fd_num = 2
+        self.uid = pwd.getpwnam(args.loguser).pw_uid
+        self.gid = grp.getgrnam(args.loggroup).gr_gid
 
     def run(self):
         # chroot into logdir
         os.chroot(self.log_root)
+
+        # drop privileges
+        os.setgroups([])
+        os.setgid(self.gid)
+        os.setuid(self.uid)
 
         while True:
             try:
