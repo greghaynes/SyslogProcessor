@@ -5,7 +5,7 @@ on regular expressions.
 Author: Gregory Haynes <greg@idealist.org> (2012)
 """
 
-from multiprocessing import Pool, Queue
+from multiprocessing import Pool, Queue, Process
 from loggerglue.rfc5424 import SyslogEntry
 from Queue import Empty as QueueEmpty
 import asyncore
@@ -19,6 +19,7 @@ import sspps
 import handler
 import signal
 import rsyslog_fix
+import logwriter
 
 def daemonize():
     try:
@@ -57,7 +58,7 @@ class LogEntryHandlerMap(object):
 
 class LogEntryWorker(object):
 
-    def __init__(self, work_queue, args):
+    def __init__(self, work_queue, args, log_write_queue):
         self.work_queue = work_queue
         self.init_handler_map(args.handlersdir)
 
@@ -109,8 +110,8 @@ class LogEntryWorker(object):
             handler.trigger(entry)
             
 
-def start_worker(work_queue, entryhandler_map):
-    worker = LogEntryWorker(work_queue, entryhandler_map)
+def start_worker(work_queue, entryhandler_map, log_write_queue):
+    worker = LogEntryWorker(work_queue, entryhandler_map, log_write_queue)
     return worker.run()
 
 
@@ -165,10 +166,22 @@ def main():
         help='Numer of worker processes',
         type=int,
         default=4)
-    parser.add_argument('-q', '--queuesize',
-        help='Size of entry queue',
+    parser.add_argument('-w', '--workqueuesize',
+        help='Size of worker queue',
         type=int,
         default=100)
+    parser.add_argument('-c', '--logqueuesize',
+        help='Size of log write queue',
+        type=int,
+        default=100)
+    parser.add_argument('-f', '--maxfds',
+        help='Maximum number of file descriptors to open',
+        type=int,
+        default=1020)
+    parser.add_argument('-d', '--logdir',
+        help='Root directory for log files',
+        type=str,
+        default='/var/log')
     parser.add_argument('-p', '--port',
         help='Syslog server port',
         type=int,
@@ -193,7 +206,14 @@ def main():
     rsyslog_fix.fix()
 
     # Create the work queue
-    work_queue = Queue(args.queuesize)
+    work_queue = Queue(args.workqueuesize)
+
+    # log write queue
+    log_write_queue = Queue(args.logqueuesize)
+
+    # Start log writer process
+    log_writer = Process(target=logwriter.run_writer,
+                         args=(log_write_queue, args))
 
     # Reload signal handler
     def sigusr1_handler(signum, frame):
@@ -205,7 +225,7 @@ def main():
     # Create the worker pool
     pool = Pool(processes=args.numworkers,
                 initializer=start_worker,
-                initargs=(work_queue, args))
+                initargs=(work_queue, args, log_write_queue))
 
     server = SyslogServer((args.listen, args.port), work_queue)
 
