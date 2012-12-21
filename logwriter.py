@@ -19,6 +19,9 @@ class LogWriter(object):
                 dest, data = self.writer_queue.get(timeout=1)
             except QueueEmpty:
                 continue
+            except KeyboardInterrupt:
+                print 'LogWriter exiting'
+                return
             try:
                 f = self.fd_cache[dest][0]
             except KeyError:

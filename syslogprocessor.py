@@ -214,6 +214,7 @@ def main():
     # Start log writer process
     log_writer = Process(target=logwriter.run_writer,
                          args=(log_write_queue, args))
+    log_writer.start()
 
     # Reload signal handler
     def sigusr1_handler(signum, frame):
