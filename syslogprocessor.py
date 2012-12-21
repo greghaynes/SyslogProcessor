@@ -11,6 +11,8 @@ from Queue import Empty as QueueEmpty
 import asyncore
 import socket
 import os
+import pwd
+import grp
 import sys
 import time
 import pyparsing
@@ -61,6 +63,8 @@ class LogEntryWorker(object):
     def __init__(self, work_queue, args, log_write_queue):
         self.work_queue = work_queue
         self.init_handler_map(args.handlersdir)
+        self.uid = pwd.getpwnam(args.workuser).pw_uid
+        self.gid = grp.getgrnam(args.workgroup).gr_gid
 
     @property
     def runable(self):
@@ -80,6 +84,11 @@ class LogEntryWorker(object):
         if not self.runable:
             print 'Process not runable, returning'
             return False
+
+        # Drop privileges
+        os.setgroups([])
+        os.setgid(self.gid)
+        os.setuid(self.uid)
 
         ppid = os.getppid()
         while True:
@@ -170,6 +179,14 @@ def main():
         help='Size of worker queue',
         type=int,
         default=100)
+    parser.add_argument('-q', '--workuser',
+        help='User for worker processes to run as',
+        type=str,
+        default='nobody')
+    parser.add_argument('-r', '--workgroup',
+        help='Group for worker processes to run as',
+        type=str,
+        default='nogroup')
     parser.add_argument('-c', '--logqueuesize',
         help='Size of log write queue',
         type=int,
@@ -182,6 +199,14 @@ def main():
         help='Root directory for log files',
         type=str,
         default='/var/log')
+    parser.add_argument('-u', '--loguser',
+        help='User for log writer to run as',
+        type=str,
+        default=None)
+    parser.add_argument('-x', '--loggroup',
+        help='Group for log writer to run as',
+        type=str,
+        default=None)
     parser.add_argument('-p', '--port',
         help='Syslog server port',
         type=int,
