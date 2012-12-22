@@ -62,6 +62,7 @@ class LogEntryWorker(object):
 
     def __init__(self, work_queue, args, log_write_queue):
         self.work_queue = work_queue
+        self.log_write_queue = log_write_queue
         self.init_handler_map(args.handlersdir)
         self.uid = pwd.getpwnam(args.workuser).pw_uid
         self.gid = grp.getgrnam(args.workgroup).gr_gid
@@ -71,7 +72,9 @@ class LogEntryWorker(object):
         return self.entryhandler_map != None
 
     def init_handler_map(self, handlersdir):
-        self.plugin_loader = sspps.PluginLoader(handlersdir, parent_class=handler.LogEntryHandler)
+        self.plugin_loader = sspps.PluginLoader(handlersdir,
+                                                parent_class=handler.LogEntryHandler,
+                                                init_args=(self.log_write_queue,))
         try:
             self.plugin_loader.load_all()
         except OSError:

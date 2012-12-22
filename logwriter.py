@@ -16,7 +16,9 @@ class LogWriter(object):
 
     def run(self):
         # chroot into logdir
+        print 'chrooting to %s' % self.log_root
         os.chroot(self.log_root)
+        os.chdir('/')
 
         # drop privileges
         os.setgroups([])
@@ -31,8 +33,9 @@ class LogWriter(object):
             except KeyboardInterrupt:
                 print 'LogWriter exiting'
                 return
+            f = None
             try:
-                f = self.fd_cache[dest][0]
+                f = self.file_cache[dest][0]
             except KeyError:
                 if self.last_fd_num >= self.max_fds:
                     'We need to expire something'
@@ -45,11 +48,10 @@ class LogWriter(object):
                     else:
                         self.fd_cache[dest][0].close()
                         del self.fd_cache[dest]
-                f = open(dest)
-                self.fd_cache[dest] = (f, time.time())
-            finally:
-                f.write(data)
-                self.fd_cache[dest][1] = time.time()
+                f = open(dest, 'a')
+                self.file_cache[dest] = [f, time.time()]
+            f.write(data)
+            self.file_cache[dest][1] = time.time()
 
 def run_writer(writer_queue, args):
     writer = LogWriter(writer_queue, args)
