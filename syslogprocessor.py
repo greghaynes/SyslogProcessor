@@ -11,8 +11,6 @@ from Queue import Empty as QueueEmpty
 import asyncore
 import socket
 import os
-import pwd
-import grp
 import sys
 import time
 import pyparsing
@@ -22,28 +20,7 @@ import handler
 import signal
 import rsyslog_fix
 import logwriter
-
-def daemonize():
-    try:
-        pid = os.fork()
-    except OSError, e:
-        raise Exception, 'First fork failed: %s [%s]' % (e.strerror, e.errno)
-
-    if pid > 0:
-        sys.exit(0)
-
-    os.chdir('/')
-    os.setsid()
-    os.umask(0)
-
-    try:
-        pid = os.fork()
-    except OSError, e:
-        raise Exception, 'Second fork failed: %s [%s]' % (e.strerror, e.errno)
-
-    if pid > 0:
-        sys.exit(0)
-
+import unixtools
 
 class LogEntryHandlerMap(object):
 
@@ -64,8 +41,8 @@ class LogEntryWorker(object):
         self.work_queue = work_queue
         self.log_write_queue = log_write_queue
         self.init_handler_map(args.handlersdir)
-        self.uid = pwd.getpwnam(args.workuser).pw_uid
-        self.gid = grp.getgrnam(args.workgroup).gr_gid
+        self.uid = unixtools.get_uid(args.workuser)
+        self.gid = unixtools.get_gid(args.workgroup)
 
     @property
     def runable(self):
@@ -228,8 +205,9 @@ def main():
 
     args = parser.parse_args()
 
+    # Daemonize
     if args.daemonize:
-        daemonize()
+        unixtools.daemonize()
 
     rsyslog_fix.fix()
 
@@ -244,7 +222,7 @@ def main():
                          args=(log_write_queue, args))
     log_writer.start()
 
-    # Reload signal handler
+    # Our reload signal handler
     def sigusr1_handler(signum, frame):
         global do_reload
         do_reload = True

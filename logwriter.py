@@ -1,7 +1,6 @@
 import time
 import os
-import pwd
-import grp
+import unixtools
 from Queue import Empty as QueueEmpty
 
 class LogWriter(object):
@@ -11,12 +10,11 @@ class LogWriter(object):
         self.log_root = args.logdir
         self.file_cache = {}
         self.last_fd_num = 2
-        self.uid = pwd.getpwnam(args.loguser).pw_uid
-        self.gid = grp.getgrnam(args.loggroup).gr_gid
+        self.uid = unixtools.get_uid(args.loguser)
+        self.gid = unixtools.get_gid(args.loggroup)
 
     def run(self):
         # chroot into logdir
-        print 'chrooting to %s' % self.log_root
         os.chroot(self.log_root)
         os.chdir('/')
 
