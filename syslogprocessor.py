@@ -57,7 +57,7 @@ class LogEntryWorker(object):
         except OSError:
             print 'Invalid plugin path \'%s\'.' % handlersdir
             return None
-        
+
         self.entryhandler_map = LogEntryHandlerMap(self.plugin_loader.plugins)
 
     def run(self):
@@ -97,7 +97,7 @@ class LogEntryWorker(object):
         handlers = self.entryhandler_map.handlers_for(entry)
         for handler in handlers:
             handler.trigger(entry)
-            
+
 
 def start_worker(work_queue, entryhandler_map, log_write_queue):
     worker = LogEntryWorker(work_queue, entryhandler_map, log_write_queue)
@@ -121,8 +121,8 @@ class SyslogClient(asyncore.dispatcher_with_send):
                 start_pos = line.find('<')
                 if start_pos != -1:
                     line = line[start_pos:]
-                    self.work_queue.put(line)
-        
+                    self.work_queue.put(line, block=False)
+
 
 class SyslogServer(asyncore.dispatcher):
 
