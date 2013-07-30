@@ -3,7 +3,7 @@ import sspps
 
 class LogEntryHandler(sspps.Plugin):
 
-    def __init__(self, handler, log_write_queue,
+    def __init__(self, log_write_queue=None,
                  privals=None,
                  timestamp=None,
                  hostname=None,
@@ -13,7 +13,6 @@ class LogEntryHandler(sspps.Plugin):
                  msg=None,
                  disjunctive=True):
         super(LogEntryHandler, self).__init__()
-        self.handler = handler
         self.log_write_queue = log_write_queue
         self.privals = privals
         self.timestamp = timestamp and re.compile(timestamp)
@@ -57,5 +56,5 @@ class LogEntryHandler(sspps.Plugin):
         self.handler(entry)
 
     def log_to(self, path, logstring):
-        self.log_write_queue.put((path, logstring))
-
+	if self.log_write_queue != None:
+            self.log_write_queue.put((path, logstring))

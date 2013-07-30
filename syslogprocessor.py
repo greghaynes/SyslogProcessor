@@ -53,7 +53,7 @@ class LogEntryWorker(object):
     def init_handler_map(self, handlersdir):
         self.plugin_loader = sspps.PluginLoader(handlersdir,
                                                 parent_class=handler.LogEntryHandler,
-                                                init_args=(self.log_write_queue,))
+                                                init_kwargs={'log_write_queue': self.log_write_queue})
         try:
             self.plugin_loader.load_all()
         except OSError:
