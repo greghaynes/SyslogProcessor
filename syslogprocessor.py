@@ -20,9 +20,9 @@ import handler
 import signal
 import rsyslog_fix
 import logwriter
-import unixtools
 import pwd
 import grp
+import daemon
 
 class LogEntryHandlerMap(object):
 
@@ -170,7 +170,6 @@ def group_or_gid(arg):
 do_reload = False
 
 def main():
-    global do_reload
     # Argument parsing
     parser = argparse.ArgumentParser(description='Framework to process syslog'\
                                      ' entries')
@@ -230,7 +229,14 @@ def main():
 
     # Daemonize
     if args.daemonize:
-        unixtools.daemonize()
+        with daemon.DaemonContext():
+            daemon_main(args)
+    else:
+        daemon_main(args)
+
+
+def daemon_main(args):
+    global do_reload
 
     rsyslog_fix.fix()
 
