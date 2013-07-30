@@ -21,6 +21,8 @@ import signal
 import rsyslog_fix
 import logwriter
 import unixtools
+import pwd
+import grp
 
 class LogEntryHandlerMap(object):
 
@@ -41,8 +43,8 @@ class LogEntryWorker(object):
         self.work_queue = work_queue
         self.log_write_queue = log_write_queue
         self.init_handler_map(args.handlersdir)
-        self.uid = unixtools.get_uid(args.workuser)
-        self.gid = unixtools.get_gid(args.workgroup)
+        self.uid = args.workuser
+        self.gid = args.workgroup
 
     @property
     def runable(self):
@@ -144,6 +146,27 @@ class SyslogServer(asyncore.dispatcher):
             handler = SyslogClient(sock, self.work_queue)
 
 
+def user_or_uid(arg):
+    try:
+        return int(arg)
+    except ValueError:
+        try:
+            return pwd.getpwnam(arg).pw_uid
+        except KeyError:
+            raise argparse.ArgumentTypeError('unknown user: %s' % arg)
+
+
+def group_or_gid(arg):
+    try:
+        return int(arg)
+    except ValueError:
+        try:
+            return grp.getgrnam(arg).gr_gid
+        except KeyError:
+            raise argparse.ArgumentTypeError('unknown group: %s' % arg)
+
+
+
 do_reload = False
 
 def main():
@@ -161,11 +184,11 @@ def main():
         default=100)
     parser.add_argument('-q', '--workuser',
         help='User for worker processes to run as',
-        type=str,
+        type=user_or_uid,
         default='nobody')
     parser.add_argument('-r', '--workgroup',
         help='Group for worker processes to run as',
-        type=str,
+        type=group_or_gid,
         default='nogroup')
     parser.add_argument('-c', '--logqueuesize',
         help='Size of log write queue',
@@ -181,11 +204,11 @@ def main():
         default='/var/log')
     parser.add_argument('-u', '--loguser',
         help='User for log writer to run as',
-        type=str,
+        type=user_or_uid,
         default='syslog')
     parser.add_argument('-x', '--loggroup',
         help='Group for log writer to run as',
-        type=str,
+        type=group_or_gid,
         default='syslog')
     parser.add_argument('-p', '--port',
         help='Syslog server port',
